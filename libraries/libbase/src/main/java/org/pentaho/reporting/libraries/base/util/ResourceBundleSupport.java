@@ -19,6 +19,7 @@ package org.pentaho.reporting.libraries.base.util;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.pentaho.util.locale.LocaleResolver;
 
 import javax.swing.*;
 import java.awt.*;
@@ -31,9 +32,11 @@ import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * An utility class to ease up using property-file resource bundles.
@@ -63,10 +66,15 @@ public class ResourceBundleSupport {
    */
   private ResourceBundle resources;
 
+  private Map<Locale, ResourceBundle> localeToResources;
+
   /**
    * A cache for string values, as looking up the cache is faster than looking up the value in the bundle.
    */
   private HashMap<String, String> cache;
+
+  private Map<CacheKey, String> messagesCache;
+
   /**
    * The current lookup path when performing non local lookups. This prevents infinite loops during such lookups.
    */
@@ -123,9 +131,12 @@ public class ResourceBundleSupport {
     this.sourceClassLoader = classLoader;
     this.locale = locale;
     this.resources = resourceBundle;
+    this.localeToResources = new ConcurrentHashMap<>( 4 );
+    this.localeToResources.put( locale, resourceBundle );
     this.resourceBase = baseName;
     this.cache = new HashMap<String, String>();
     this.lookupPath = new HashSet<String>();
+    this.messagesCache = new HashMap<>();
   }
 
   /**
@@ -165,7 +176,9 @@ public class ResourceBundleSupport {
       throw new NullPointerException();
     }
 
-    final String retval = this.cache.get( key );
+    Locale currentLocale = LocaleResolver.getLocale();
+
+    final String retval = this.messagesCache.get( new CacheKey( currentLocale, key ) );
     if ( retval != null ) {
       return retval;
     }
@@ -720,5 +733,34 @@ public class ResourceBundleSupport {
    */
   public Locale getLocale() {
     return locale;
+  }
+
+  private static class CacheKey {
+
+    private Locale locale;
+    private String messageKey;
+
+    private CacheKey( Locale locale, String messageKey ) {
+      this.locale = locale;
+      this.messageKey = messageKey;
+    }
+
+    @Override
+    public boolean equals( Object o ) {
+      if ( this == o ) return true;
+      if ( o == null || getClass() != o.getClass() ) return false;
+
+      CacheKey cacheKey = (CacheKey) o;
+
+      if ( !locale.equals( cacheKey.locale ) ) return false;
+      return messageKey.equals( cacheKey.messageKey );
+    }
+
+    @Override
+    public int hashCode() {
+      int result = locale.hashCode();
+      result = 31 * result + messageKey.hashCode();
+      return result;
+    }
   }
 }

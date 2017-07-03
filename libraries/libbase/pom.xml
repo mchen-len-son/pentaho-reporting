@@ -26,6 +26,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>pentaho</groupId>
+      <artifactId>locale-resolver</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>commons-logging</groupId>
       <artifactId>commons-logging</artifactId>
       <scope>compile</scope>
